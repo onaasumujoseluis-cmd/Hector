@@ -1,0 +1,10 @@
+streamlit
+pandas
+sqlalchemy
+mysql-connector-python
+altair
+python-dotenv
+rapidfuzz
+openpyxl
+xlrd
+plotly
