@@ -147,11 +147,11 @@ def calculate_roi_por_anuncio():
 
 # Navigation - SIMPLIFICADO PARA EL CLIENTE
 SECTION_OPTIONS = [
-    "🏠 Dashboard ROI",
-    "📊 Meta Ads",
-    "🌐 Landings",
-    "💰 Ventas & ROI",
-    "🎥 Webinar"
+    " Dashboard ROI",
+    " Meta Ads",
+    " Landings",
+    " Ventas & ROI",
+    " Webinar"
 ]
 
 section = st.sidebar.selectbox(
@@ -163,11 +163,11 @@ section = st.sidebar.selectbox(
 # ---------------------------
 # 1) DASHBOARD ROI - LO MÁS IMPORTANTE
 # ---------------------------
-if section == "🏠 Dashboard ROI":
-    st.title("💰 DASHBOARD ROI - ¿DÓNDE PONER MÁS DINERO?")
+if section == " Dashboard ROI":
+    st.title(" DASHBOARD ROI - ¿DÓNDE PONER MÁS DINERO?")
     
     # ROI por anuncio
-    st.subheader("🎯 ROI POR ANUNCIO (Lo que más importa)")
+    st.subheader(" ROI POR ANUNCIO (Lo que más importa)")
     
     df_roi = calculate_roi_por_anuncio()
     
@@ -190,9 +190,9 @@ if section == "🏠 Dashboard ROI":
         roi_total = ((total_ventas - total_gastado) / total_gastado * 100) if total_gastado > 0 else 0
         
         col1, col2, col3 = st.columns(3)
-        col1.metric("💰 Total Gastado", f"{total_gastado:,.0f} €")
-        col2.metric("💰 Total Ventas", f"{total_ventas:,.0f} €")
-        col3.metric("📈 ROI Total", f"{roi_total:.1f}%", 
+        col1.metric(" Total Gastado", f"{total_gastado:,.0f} €")
+        col2.metric("Total Ventas", f"{total_ventas:,.0f} €")
+        col3.metric(" ROI Total", f"{roi_total:.1f}%", 
                    delta="Positivo" if roi_total > 0 else "Negativo")
         
         # Tabla de ROI
@@ -212,7 +212,7 @@ if section == "🏠 Dashboard ROI":
         # Top 3 anuncios con mejor ROI
         top_anuncios = df_roi.head(3)
         if not top_anuncios.empty:
-            st.success("**✅ ESCALAR ESTOS ANUNCIOS:**")
+            st.success("** ESCALAR ESTOS ANUNCIOS:**")
             for idx, row in top_anuncios.iterrows():
                 if row['roi_porcentaje'] > 50:
                     st.markdown(f"""
@@ -226,7 +226,7 @@ if section == "🏠 Dashboard ROI":
         # Anuncios con ROI negativo
         negativos = df_roi[df_roi['roi_porcentaje'] <= 0]
         if not negativos.empty:
-            st.warning("**⚠️ REVISAR/PAUSAR ESTOS ANUNCIOS:**")
+            st.warning("** REVISAR/PAUSAR ESTOS ANUNCIOS:**")
             for idx, row in negativos.iterrows():
                 st.markdown(f"""
                 **{row['campaign_name']}**
@@ -237,16 +237,16 @@ if section == "🏠 Dashboard ROI":
                 """)
     else:
         st.info("""
-        **📋 Para ver el ROI por anuncio:**
+        ** Para ver el ROI por anuncio:**
         
-        1. **Los closers suben ventas** en la pestaña "💰 Ventas & ROI"
+        1. **Los closers suben ventas** en la pestaña " Ventas & ROI"
         2. **El sistema automáticamente** conecta ventas con anuncios
         3. **Aquí verás** qué anuncios dan más ROI para escalar
         """)
     
     # Gráfico de ROI
     if not df_roi.empty:
-        st.subheader("📊 ROI Visual por Anuncio")
+        st.subheader(" ROI Visual por Anuncio")
         
         # Preparar datos para gráfico
         chart_data = df_roi.copy()
@@ -269,8 +269,8 @@ if section == "🏠 Dashboard ROI":
 # ---------------------------
 # 2) META ADS
 # ---------------------------
-elif section == "📊 Meta Ads":
-    st.title("📊 Meta Ads - Rendimiento")
+elif section == " Meta Ads":
+    st.title(" Meta Ads - Rendimiento")
     df = load_table_safe("SELECT fecha_corte, campaign_name, spend_eur, impressions, clicks, results, ctr_pct, cpc, cpl FROM meta_campaign_metrics")
     
     if df.empty:
@@ -305,15 +305,15 @@ elif section == "📊 Meta Ads":
         st.altair_chart(chart.properties(height=350), use_container_width=True)
         
         # Top campañas por gasto
-        st.subheader("🔥 Top Campañas por Inversión")
+        st.subheader(" Top Campañas por Inversión")
         top_campaigns = df.groupby("campaign_name")["spend_eur"].sum().sort_values(ascending=False).head(10)
         st.bar_chart(top_campaigns)
 
 # ---------------------------
 # 3) LANDINGS
 # ---------------------------
-elif section == "🌐 Landings":
-    st.title("🌐 Landings - Conversiones")
+elif section == " Landings":
+    st.title(" Landings - Conversiones")
     df = load_table_safe("SELECT fecha, landing_nombre, sessions, leads, conv_pct FROM landings_performance_new")
     
     if not df.empty:
@@ -322,7 +322,7 @@ elif section == "🌐 Landings":
         # Conversion rate por landing
         conv = df.groupby("landing_nombre", as_index=False)["conv_pct"].mean().sort_values("conv_pct", ascending=False)
         
-        st.subheader("🏆 Top Landings por Conversión")
+        st.subheader(" Top Landings por Conversión")
         st.altair_chart(alt.Chart(conv).mark_bar().encode(
             x=alt.X("landing_nombre:N", sort="-y"),
             y="conv_pct:Q"
@@ -331,31 +331,17 @@ elif section == "🌐 Landings":
 # ---------------------------
 # 4) VENTAS & ROI - PROCESO COMPLETO
 # ---------------------------
-elif section == "💰 Ventas & ROI":
-    st.title("💰 Ventas & ROI - Proceso Closers")
+elif section == " Ventas & ROI":
+    st.title(" Ventas & ROI - Proceso Closers")
     
     # Dos pestañas: Subir ventas y Ver conexiones
-    tab1, tab2 = st.tabs(["📤 Subir Ventas", "🔗 Ver Conexiones"])
+    tab1, tab2 = st.tabs(["📤 Subir Ventas", " Ver Conexiones"])
     
     with tab1:
-        st.header("📤 Subir Ventas (Para Closers)")
+        st.header(" Subir Ventas (Para Closers)")
         
         st.markdown("""
-        ### 📋 **INSTRUCCIONES SIMPLES:**
         
-        1. **Pregunta al cliente:** "¿De qué anuncio viniste?"
-        2. **Anota en Excel:**
-           - `nombre_anuncio`: Lo que te diga el cliente
-           - `precio`: Cuánto pagó
-           - `fecha_compra`, `nombre_cliente`
-        3. **Sube el Excel aquí**
-        
-        ### 🎯 **EJEMPLOS DE nombre_anuncio:**
-        - "Del anuncio del curso gratis de Diciembre"
-        - "De Instagram del webinar"
-        - "Del que sale en Facebook ahora"
-        - "ESCALADO FINAL - DIC"
-        """)
         
         # Subida de archivo
         uploaded = st.file_uploader("Sube Excel/CSV con ventas", type=["csv", "xlsx"])
@@ -367,17 +353,17 @@ elif section == "💰 Ventas & ROI":
                 else:
                     df_new = pd.read_csv(uploaded)
                 
-                st.success(f"✅ Archivo cargado: {len(df_new)} ventas")
+                st.success(f" Archivo cargado: {len(df_new)} ventas")
                 st.dataframe(df_new.head())
                 
-                if st.button("🚀 Insertar Ventas", type="primary"):
+                if st.button(" Insertar Ventas", type="primary"):
                     try:
                         df_new.columns = [c.strip() for c in df_new.columns]
                         if "fecha_compra" in df_new.columns:
                             df_new["fecha_compra"] = pd.to_datetime(df_new["fecha_compra"], errors="coerce")
                         
                         df_new.to_sql("ventas_domustela", engine, if_exists="append", index=False)
-                        st.success("✅ Ventas insertadas")
+                        st.success(" Ventas insertadas")
                         st.balloons()
                     except Exception as e:
                         st.error(f"Error: {e}")
@@ -386,7 +372,7 @@ elif section == "💰 Ventas & ROI":
                 st.error(f"Error leyendo archivo: {e}")
     
     with tab2:
-        st.header("🔗 Conexiones Ventas-Anuncios")
+        st.header(" Conexiones Ventas-Anuncios")
         
         # Mostrar matching actual
         df_ventas = load_table_safe("SELECT nombre_anuncio, SUM(precio) as total_ventas FROM ventas_domustela GROUP BY nombre_anuncio")
@@ -415,7 +401,7 @@ elif section == "💰 Ventas & ROI":
                     ventas = venta["total_ventas"]
                     roi = ((ventas - gastado) / gastado * 100) if gastado > 0 else 0
                     
-                    emoji = "✅" if roi > 0 else "⚠️"
+                    emoji = "" if roi > 0 else ""
                     st.markdown(f"""
                     {emoji} **{anuncio}** → **{mejor_match}**
                     • Gastado: {gastado:,.0f}€
@@ -423,7 +409,7 @@ elif section == "💰 Ventas & ROI":
                     • **ROI: {roi:.1f}%**
                     """)
                 else:
-                    st.markdown(f"❓ **{anuncio}** → Sin match claro")
+                    st.markdown(f" **{anuncio}** → Sin match claro")
 
 # ---------------------------
 # 5) WEBINAR
@@ -435,13 +421,14 @@ elif section == "🎥 Webinar":
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🎯 **PARA EL CLIENTE:**")
+st.sidebar.markdown("###  **PARA EL CLIENTE:**")
 st.sidebar.markdown("""
-**Ver pestaña: "🏠 Dashboard ROI"**
+**Ver pestaña: " Dashboard ROI"**
 
 Ahí verás:
-1. **💰 ROI por anuncio**
-2. **🚀 Qué anuncios escalar**
-3. **⚠️ Qué anuncios pausar**
+1. ** ROI por anuncio**
+2. ** Qué anuncios escalar**
+3. ** Qué anuncios pausar**
 """)
 st.sidebar.caption("Domustela Dashboard v4.0 - ROI Focus")
+
