@@ -1,6 +1,6 @@
 # domustela.py
 # Professional Dashboard for Domustela Analytics
-# Version: 3.0
+# Version: 3.1 - CORREGIDO
 # Author: JLON Data Solutions
 # Description: Streamlit-based dashboard for Meta Ads, GA4, Sales, and Webinar data analysis
 
@@ -289,17 +289,17 @@ def generate_storytelling_inversion(df: pd.DataFrame) -> str:
             trend_percentage = (trend / first_investment * 100) if first_investment > 0 else 0
             
             if trend > 0:
-                trend_text = f" **Tendencia alcista**: La inversión ha aumentado {trend_percentage:.1f}% desde {first_investment:.0f}€ hasta {last_investment:.0f}€"
+                trend_text = f"📈 **Tendencia alcista**: La inversión ha aumentado {trend_percentage:.1f}% desde {first_investment:.0f}€ hasta {last_investment:.0f}€"
             elif trend < 0:
-                trend_text = f" **Tendencia bajista**: La inversión ha disminuido {abs(trend_percentage):.1f}% desde {first_investment:.0f}€ hasta {last_investment:.0f}€"
+                trend_text = f"📉 **Tendencia bajista**: La inversión ha disminuido {abs(trend_percentage):.1f}% desde {first_investment:.0f}€ hasta {last_investment:.0f}€"
             else:
-                trend_text = " **Tendencia estable**: La inversión se mantiene constante"
+                trend_text = "➡️ **Tendencia estable**: La inversión se mantiene constante"
         else:
-            trend_text = "**Datos insuficientes** para determinar tendencia"
+            trend_text = "📊 **Datos insuficientes** para determinar tendencia"
         
         # Generate storytelling
         story = f"""
-        **Storytelling de Inversión Meta Ads**
+        **📊 Storytelling de Inversión Meta Ads**
         
         **Resumen financiero:**
         • **Inversión total**: {total_investment:,.0f}€
@@ -313,19 +313,19 @@ def generate_storytelling_inversion(df: pd.DataFrame) -> str:
         """
         
         if investment_range > avg_daily_investment * 0.5:
-            story += "•  **Alta volatilidad**: Considera estabilizar el presupuesto diario para mejor predictibilidad\n"
+            story += "• ⚠️ **Alta volatilidad**: Considera estabilizar el presupuesto diario para mejor predictibilidad\n"
         else:
-            story += "• **Baja volatilidad**: Estrategia de inversión estable y predecible\n"
+            story += "• ✅ **Baja volatilidad**: Estrategia de inversión estable y predecible\n"
             
         if avg_daily_investment < 1000:
-            story += "•  **Oportunidad de escala**: Si el ROI es positivo, considera aumentar la inversión gradualmente\n"
+            story += "• 💡 **Oportunidad de escala**: Si el ROI es positivo, considera aumentar la inversión gradualmente\n"
         else:
-            story += "•  **Monitoreo constante**: Asegúrate que el ROI justifique el nivel actual de inversión\n"
+            story += "• 🔍 **Monitoreo constante**: Asegúrate que el ROI justifique el nivel actual de inversión\n"
             
         if trend > avg_daily_investment * 0.2:
-            story += "•  **Escalando agresivamente**: Valida que la eficiencia (CPL) se mantenga con el aumento\n"
+            story += "• 🚀 **Escalando agresivamente**: Valida que la eficiencia (CPL) se mantenga con el aumento\n"
         elif trend < -avg_daily_investment * 0.2:
-            story += "•  **Reducción significativa**: Investiga si es por resultados pobres o estrategia deliberada\n"
+            story += "• ⚠️ **Reducción significativa**: Investiga si es por resultados pobres o estrategia deliberada\n"
         
         return story
         
@@ -333,13 +333,12 @@ def generate_storytelling_inversion(df: pd.DataFrame) -> str:
         logger.error(f"Error generating storytelling: {e}")
         return "Error generando storytelling. Revise los datos."
 
-# Navigation - MODIFICADO
+# Navigation - MODIFICADO (quitamos la sección duplicada)
 SECTION_OPTIONS = [
     "Dashboard General",
     "Meta Ads",
-    "Landings Pages",  # Cambiado de "Google Analytics (GA4)"
-    "Meta Ads - Anuncios",  # Cambiado de "Meta + GA4 (Funnel / Merge)"
-    "Ventas",
+    "Landings Pages",
+    "Ventas",  # AQUÍ está TODO el proceso de closers
     "Webinar"
 ]
 
@@ -394,7 +393,7 @@ if section == "Dashboard General":
         storytelling_block("Las landings mostradas son las que mejor convierten. Priorizar revisar copy/UX para las que están por debajo.")
 
 # ---------------------------
-# 2) META ADS - MODIFICADO CON GRÁFICO DE BARRAS Y STORYTELLING
+# 2) META ADS - CON GRÁFICO DE BARRAS/LÍNEA CORREGIDO
 # ---------------------------
 elif section == "Meta Ads":
     st.title("Meta Ads")  # Título simplificado
@@ -410,15 +409,6 @@ elif section == "Meta Ads":
         sel = st.multiselect("Selecciona campañas (vacío = todas)", campaigns, default=campaigns[:6])
         df_sel = df[df["campaign_name"].isin(sel)] if sel else df.copy()
         
-        # Selector de tipo de gráfico
-        col1, col2 = st.columns([2, 1])
-        with col2:
-            chart_type = st.selectbox(
-                "Tipo de gráfico para Evolución Inversión",
-                ["Línea", "Barras"],
-                index=0
-            )
-        
         # KPIs
         col1, col2, col3 = st.columns(3)
         col1.metric("Inversión total", f"{df_sel['spend_eur'].sum():,.2f} €")
@@ -428,29 +418,41 @@ elif section == "Meta Ads":
         # Inversión por día (selección)
         daily = df_sel.groupby("fecha_corte", as_index=False)["spend_eur"].sum().sort_values("fecha_corte")
         
-        # Gráfico de evolución de inversión
+        # Gráfico de evolución de inversión CON SELECTOR
         st.subheader("Evolución inversión")
         
+        # Selector de tipo de gráfico
+        chart_type = st.radio(
+            "Selecciona tipo de gráfico:",
+            ["Gráfico de Línea", "Gráfico de Barras"],
+            horizontal=True,
+            index=0
+        )
+        
         if not daily.empty:
-            # Selección de tipo de gráfico
-            if chart_type == "Línea":
+            # Crear gráfico según selección
+            if chart_type == "Gráfico de Línea":
                 chart = alt.Chart(daily).mark_line(point=True).encode(
-                    x="fecha_corte:T", 
+                    x=alt.X("fecha_corte:T", title="Fecha"),
                     y=alt.Y("spend_eur:Q", title="Inversión (€)"),
                     tooltip=["fecha_corte:T", "spend_eur:Q"]
-                ).properties(height=320)
-            else:  # Barras
-                chart = alt.Chart(daily).mark_bar().encode(
+                ).properties(height=350, title="Evolución de Inversión (Línea)")
+            else:  # Gráfico de Barras
+                chart = alt.Chart(daily).mark_bar(size=30).encode(
                     x=alt.X("fecha_corte:T", title="Fecha"),
                     y=alt.Y("spend_eur:Q", title="Inversión (€)"),
                     tooltip=["fecha_corte:T", "spend_eur:Q"],
-                    color=alt.value("#4CAF50")  # Color verde para barras
-                ).properties(height=320)
+                    color=alt.condition(
+                        alt.datum.spend_eur == daily["spend_eur"].max(),
+                        alt.value("#4CAF50"),  # Verde para el día con máxima inversión
+                        alt.value("#2196F3")   # Azul para los demás
+                    )
+                ).properties(height=350, title="Evolución de Inversión (Barras)")
             
             st.altair_chart(chart, use_container_width=True)
             
             # Storytelling de negocio
-            st.subheader("Storytelling de Negocio")
+            st.subheader("📈 Análisis y Recomendaciones")
             st.markdown(generate_storytelling_inversion(daily))
         else:
             st.info("No hay datos para el período seleccionado.")
@@ -463,10 +465,10 @@ elif section == "Meta Ads":
         st.dataframe(to_show, use_container_width=True)
 
 # ---------------------------
-# 3) LANDINGS PAGES (ANTES "GOOGLE ANALYTICS (GA4)") - TÍTULO MODIFICADO
+# 3) LANDINGS PAGES (ANTES "GOOGLE ANALYTICS (GA4)")
 # ---------------------------
 elif section == "Landings Pages":
-    st.title("Landings Pages — Conversiones")  # Título modificado
+    st.title("Landings Pages — Conversiones")
     df = load_table_safe("SELECT fecha, landing_nombre, sessions, leads, conv_pct FROM landings_performance_new")
     if df.empty:
         st.info("No hay datos GA4.")
@@ -486,156 +488,181 @@ elif section == "Landings Pages":
         ).properties(height=360), use_container_width=True)
         storytelling_block("Identifica las landings con mejor rendimiento y optimiza las que convienden menos.")
 
-        st.subheader("Conversiones por landing")  # Título modificado
+        st.subheader("Conversiones por landing")
         st.dataframe(df_sel.sort_values(["landing_nombre","fecha"], ascending=[True, False]), use_container_width=True)
 
 # ---------------------------
-# 4) META ADS - ANUNCIOS (ANTES "META + GA4 (FUNNEL / MERGE)") - TÍTULO MODIFICADO
-# ---------------------------
-elif section == "Meta Ads - Anuncios":
-    st.title("Meta Ads - Anuncios")  # Título modificado
-    df_meta = load_table_safe("SELECT fecha_corte, campaign_name, spend_eur, clicks, results FROM meta_campaign_metrics")
-    df_ga = load_table_safe("SELECT fecha, landing_nombre, sessions, leads FROM landings_performance_new")
-    
-    # Sección adicional: Proceso de ventas para closers
-    st.markdown("---")
-    st.subheader("Proceso de Ventas para Closers")
-    
-    proceso_ventas = """
-    ** Objetivo:** Seguimiento de ventas sin depender de URLs/UTMs complejos
-    
-    **Flujo de trabajo actual:**
-    1. **Lanzamiento anuncios** → Landing page → Agenda con equipo de ventas
-    2. **Closer recibe lead** en Excel con datos básicos
-    3. **Seguimiento manual:** Nombre, anuncio origen, estado de venta
-    4. **Problema actual:** Dificultad para correlacionar anuncio → venta en tiempo real
-    
-    **Solución implementada en este dashboard:**
-    
-    **1. Subida de ventas simplificada:**
-    - Los closers suben Excel con: fecha_compra, nombre_cliente, nombre_anuncio, landing, precio, estado
-    - No necesitan saber URLs/UTMs, solo el nombre del anuncio que les dijeron
-    
-    **2. Match automático:**
-    - El sistema hace "fuzzy matching" entre "nombre_anuncio" (ventas) y "campaign_name" (Meta Ads)
-    - Ejemplo: "Escalado Final Dic" se matchea con "ESCALADO FINAL - DICIEMBRE 2025"
-    
-    **3. Visualización para decisiones:**
-    - En esta sección puedes ver qué anuncios generan más ventas
-    - Filtra por fecha para ver rendimiento en lanzamientos específicos
-    
-    **Para los closers:**
-    - Solo necesitan guardar el **nombre del anuncio** que aparece en Meta
-    - El sistema hace el resto automáticamente
-    - Pueden ver en tiempo real qué anuncios están generando ventas
-    """
-    
-    st.markdown(proceso_ventas)
-    st.markdown("---")
-    
-    if df_meta.empty or df_ga.empty:
-        st.info("Se requieren datos de Meta y GA4 para esta sección.")
-    else:
-        df_meta["fecha_corte"] = pd.to_datetime(df_meta["fecha_corte"])
-        df_ga["fecha"] = pd.to_datetime(df_ga["fecha"])
-        # agregar diario
-        meta_daily = df_meta.groupby("fecha_corte", as_index=False).agg(spend_eur=("spend_eur","sum"), clicks=("clicks","sum"), leads_meta=("results","sum"))
-        ga_daily = df_ga.groupby("fecha", as_index=False).agg(sessions=("sessions","sum"), leads_ga=("leads","sum"))
-        funnel = pd.merge(meta_daily, ga_daily, left_on="fecha_corte", right_on="fecha", how="inner")
-        if funnel.empty:
-            st.warning("No hay intersección temporal entre Meta y GA4 (mismo rango de fechas).")
-        else:
-            funnel["ctr_pct"] = (funnel["clicks"] / funnel["spend_eur"].replace(0, pd.NA)).fillna(0) * 100
-            st.subheader("Funnel diario combinado")
-            st.dataframe(funnel.sort_values("fecha_corte", ascending=False), use_container_width=True)
-            storytelling_block("El funnel muestra la relación inversión → clicks → sesiones → leads. Identifica caídas para investigar landings o campañas.")
-
-        # Merge ventas vs campañas (si existen ventas)
-        st.subheader("Merge ventas (si existen) — Preview")
-        df_sales = load_table_safe("SELECT id, fecha_compra, nombre_anuncio, landing, precio FROM ventas_domustela")
-        merged_preview = merge_sales_with_meta(df_sales, df_meta)
-        if merged_preview.empty:
-            st.info("No hay ventas para mostrar merge.")
-        else:
-            st.dataframe(merged_preview.head(200), use_container_width=True)
-            storytelling_block("Merge tentativa entre ventas y campañas (fuzzy match si rapidfuzz disponible). Revísalo y valida para crear reglas de atribución.")
-
-# ---------------------------
-# 5) VENTAS (subir archivo, insertar)
+# 4) VENTAS - TODO EL PROCESO DE CLOSERS AQUÍ
 # ---------------------------
 elif section == "Ventas":
-    st.title("Ventas — Subir / Gestionar")
+    st.title("Ventas — Proceso de Closers")
     
     # Información para closers
-    with st.expander(" Instrucciones para Closers", expanded=True):
+    st.markdown("---")
+    st.subheader("🎯 GUÍA RÁPIDA PARA CLOSERS")
+    
+    # Instrucciones visuales
+    col1, col2 = st.columns(2)
+    
+    with col1:
         st.markdown("""
-        **Para subir ventas NO necesitas:**
-        - URLs complejas
-        - Parámetros UTM
-        - Códigos de seguimiento
+        ### ✅ **LO QUE SÍ NECESITAS:**
         
-        ** Solo necesitas guardar en tu Excel:**
-        1. **nombre_anuncio**: El nombre como aparece en Meta (ej: "ESCALADO FINAL - DIC")
-        2. **landing**: Número o nombre simple (ej: "landing1" o "1")
-        3. **fecha_compra**: Fecha de la venta
-        4. **nombre_cliente**: Nombre del cliente
-        5. **precio**: Monto de la venta
-        6. **estado**: "completada", "pendiente", etc.
+        1. **Preguntar al cliente:**
+           > "¿De qué anuncio de Facebook/Instagram viniste?"
         
-        ** El sistema automáticamente:**
-        - Busca coincidencias entre "nombre_anuncio" y las campañas de Meta
-        - Asocia cada venta con su campaña correspondiente
-        - Te permite ver qué anuncios generan más ventas
+        2. **Anotar en Excel:**
+           - `nombre_anuncio`: Lo que te diga el cliente
+           - `fecha_compra`: Fecha de venta
+           - `nombre_cliente`: Nombre del cliente
+           - `precio`: Monto pagado
+        
+        3. **Ejemplos reales:**
+           - "Del anuncio del curso gratis"
+           - "De Instagram del webinar"
+           - "Del que sale en Facebook"
         """)
     
-    st.subheader("Ventas actuales")
-    df_sales = load_table_safe("SELECT id, fecha_compra, nombre_cliente, email, telefono, origen, nombre_anuncio, landing, precio, estado, notas FROM ventas_domustela")
-    st.dataframe(df_sales, use_container_width=True)
-
-    st.subheader("Subir Excel/CSV de ventas (opcional)")
-    uploaded = st.file_uploader("Sube CSV/XLSX con columnas: fecha_compra,nombre_cliente,email,telefono,origen,nombre_anuncio,landing,precio,estado,notas", type=["csv","xlsx"])
+    with col2:
+        st.markdown("""
+        ### ❌ **LO QUE NO NECESITAS:**
+        
+        - ❌ URLs complejas
+        - ❌ Parámetros UTM
+        - ❌ Códigos de seguimiento
+        - ❌ Acceso a Ad Manager
+        - ❌ Conocimiento técnico
+        
+        ### 📊 **EL SISTEMA HACE:**
+        
+        - 🔍 **Búsqueda inteligente** entre nombres
+        - 🤝 **Conecta automáticamente** ventas con anuncios
+        - 📈 **Muestra ROI por anuncio** en tiempo real
+        """)
+    
+    st.markdown("---")
+    
+    # Visualización de match actual
+    st.subheader("🔍 Match Actual entre Ventas y Anuncios")
+    
+    # Cargar datos de ventas y Meta
+    df_sales = load_table_safe("SELECT id, fecha_compra, nombre_cliente, nombre_anuncio, landing, precio, estado FROM ventas_domustela")
+    df_meta = load_table_safe("SELECT DISTINCT campaign_name FROM meta_campaign_metrics")
+    
+    if df_sales.empty:
+        st.info("No hay ventas registradas aún.")
+    else:
+        # Mostrar tabla de ventas
+        st.dataframe(df_sales, use_container_width=True)
+        
+        # Mostrar matching con campañas
+        if not df_meta.empty and "nombre_anuncio" in df_sales.columns:
+            st.subheader("📊 Matching Automático Detectado")
+            
+            # Filtrar ventas con nombre_anuncio
+            ventas_con_nombre = df_sales[~df_sales["nombre_anuncio"].isna()]
+            
+            if not ventas_con_nombre.empty:
+                for idx, venta in ventas_con_nombre.head(10).iterrows():
+                    anuncio = str(venta["nombre_anuncio"])
+                    if HAS_RAPIDFUZZ:
+                        campaigns = df_meta["campaign_name"].astype(str).fillna("").unique().tolist()
+                        best = process.extractOne(anuncio, campaigns, scorer=fuzz.WRatio)
+                        if best and best[1] >= FUZZY_MATCH_THRESHOLD:
+                            st.markdown(f"✅ **Venta de {venta['nombre_cliente']}**: `{anuncio}` → **{best[0]}** ({best[1]:.0f}% coincidencia)")
+                        else:
+                            st.markdown(f"⚠️ **Venta de {venta['nombre_cliente']}**: `{anuncio}` → *Sin match claro*")
+                    else:
+                        st.markdown(f"📝 **Venta de {venta['nombre_cliente']}**: `{anuncio}`")
+    
+    # Subida de ventas
+    st.markdown("---")
+    st.subheader("📤 Subir Excel/CSV de Ventas")
+    
+    uploaded = st.file_uploader(
+        "Arrastra tu Excel aquí o haz clic para buscar",
+        type=["csv", "xlsx"],
+        help="Archivo debe tener columnas: fecha_compra, nombre_cliente, nombre_anuncio, precio"
+    )
+    
     if uploaded:
         try:
+            # Leer archivo
             if uploaded.name.endswith(".xlsx"):
                 df_new = pd.read_excel(uploaded)
             else:
                 df_new = pd.read_csv(uploaded)
-            st.write("Vista previa:")
-            st.dataframe(df_new.head(8))
             
-            # Mostrar match con campañas
-            if "nombre_anuncio" in df_new.columns:
-                st.write("**🔍 Matching con campañas Meta:**")
-                df_meta = load_table_safe("SELECT DISTINCT campaign_name FROM meta_campaign_metrics")
-                unique_ads = df_new["nombre_anuncio"].dropna().unique()
-                
-                for ad in unique_ads[:10]:  # Mostrar primeros 10
-                    if HAS_RAPIDFUZZ and not df_meta.empty:
-                        campaigns = df_meta["campaign_name"].astype(str).fillna("").unique().tolist()
-                        best = process.extractOne(str(ad), campaigns, scorer=fuzz.WRatio)
-                        if best and best[1] >= FUZZY_MATCH_THRESHOLD:
-                            st.write(f"• `{ad}` → **{best[0]}** ({best[1]:.0f}% match)")
-                        else:
-                            st.write(f"• `{ad}` → *Sin match claro*")
-                    else:
-                        st.write(f"• `{ad}`")
+            st.success(f"✅ Archivo cargado: {uploaded.name} ({len(df_new)} registros)")
             
-            if st.button("Insertar (append) en ventas_domustela"):
+            # Mostrar vista previa
+            st.write("**Vista previa (primeras 5 filas):**")
+            st.dataframe(df_new.head())
+            
+            # Verificar columnas requeridas
+            required_columns = ["fecha_compra", "nombre_cliente", "precio"]
+            missing_columns = [col for col in required_columns if col not in df_new.columns]
+            
+            if missing_columns:
+                st.warning(f"⚠️ Faltan columnas: {', '.join(missing_columns)}")
+            else:
+                st.info("✅ Columnas requeridas presentes")
+            
+            # Botón para insertar
+            if st.button("🚀 Insertar Ventas en Base de Datos", type="primary"):
                 try:
-                    # normalizar nombres columnas
+                    # Preparar datos
                     df_new.columns = [c.strip() for c in df_new.columns]
+                    
+                    # Convertir fecha
                     if "fecha_compra" in df_new.columns:
                         df_new["fecha_compra"] = pd.to_datetime(df_new["fecha_compra"], errors="coerce")
+                    
+                    # Insertar en base de datos
                     df_new.to_sql("ventas_domustela", engine, if_exists="append", index=False)
-                    st.success(" Ventas subidas correctamente.")
+                    
+                    st.success("✅ ¡Ventas insertadas correctamente!")
                     st.balloons()
+                    
+                    # Actualizar página
+                    st.rerun()
+                    
                 except Exception as e:
-                    st.error(f"❌ Error al insertar ventas: {e}")
+                    st.error(f"❌ Error al insertar: {str(e)}")
+                    
         except Exception as e:
-            st.error(f"❌ Error leyendo archivo: {e}")
+            st.error(f"❌ Error al leer archivo: {str(e)}")
+    
+    # Plantilla de Excel para descargar
+    st.markdown("---")
+    st.subheader("📥 Plantilla de Excel")
+    
+    # Crear DataFrame de ejemplo
+    template_data = {
+        "fecha_compra": ["2024-01-15", "2024-01-15", "2024-01-16"],
+        "nombre_cliente": ["Juan Pérez", "María López", "Carlos Ruiz"],
+        "nombre_anuncio": ["ESCALADO FINAL - DIC", "anuncio webinar", "Instagram promo"],
+        "landing": ["1", "landing2", "3"],
+        "precio": [997, 997, 997],
+        "estado": ["completada", "completada", "pendiente"],
+        "notas": ["Cliente satisfecho", "Pago con tarjeta", "Seguimiento pendiente"]
+    }
+    
+    template_df = pd.DataFrame(template_data)
+    
+    # Convertir a Excel
+    template_excel = template_df.to_csv(index=False).encode('utf-8')
+    
+    st.download_button(
+        label="📋 Descargar Plantilla de Excel",
+        data=template_excel,
+        file_name="plantilla_ventas_closers.csv",
+        mime="text/csv",
+        help="Usa esta plantilla para subir tus ventas"
+    )
 
 # ---------------------------
-# 6) WEBINAR (subida y tabla)
+# 5) WEBINAR
 # ---------------------------
 elif section == "Webinar":
     st.title("Webinar — Registros")
@@ -655,23 +682,20 @@ elif section == "Webinar":
                     if "fecha_registro" in df_new_w.columns:
                         df_new_w["fecha_registro"] = pd.to_datetime(df_new_w["fecha_registro"], errors="coerce")
                     df_new_w.to_sql("webinar_registros", engine, if_exists="append", index=False)
-                    st.success(" Registros insertados.")
+                    st.success("✅ Registros insertados.")
                 except Exception as e:
-                    st.error(f" Error al insertar registros webinar: {e}")
+                    st.error(f"❌ Error al insertar registros webinar: {e}")
         except Exception as e:
-            st.error(f" Error leyendo CSV: {e}")
+            st.error(f"❌ Error leyendo CSV: {e}")
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.markdown("###  Flujo de Trabajo para Closers")
+st.sidebar.markdown("### 📋 Para Closers:")
 st.sidebar.markdown("""
-**Simplificado:**
-1. **Recibe lead** → Agenda en calendario
-2. **Cierra venta** → Anota nombre_anuncio
-3. **Sube Excel** → Solo datos básicos
-4. **Mira dashboard** → Ve qué anuncios venden
-
-**No necesita:** URLs, UTMs, códigos
+1. **Pregunta:** ¿De qué anuncio viniste?
+2. **Anota:** nombre_anuncio en Excel
+3. **Sube:** Excel en "Ventas"
+4. **Listo:** Sistema hace el resto
 """)
-st.sidebar.caption("JLON Data Solutions — Domustela Dashboard v3.0")
+st.sidebar.caption("JLON Data Solutions — Domustela Dashboard v3.1")
 st.sidebar.caption("Built with Streamlit & Professional Analytics")
