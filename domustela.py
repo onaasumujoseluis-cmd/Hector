@@ -1,6 +1,6 @@
 # domustela.py
 # Professional Dashboard for Domustela Analytics
-# Version: 5.0 - Simplified Professional
+# Version: 5.1 - Con Análisis de ROI por Anuncio (Plan B)
 # Author: JLON Data Solutions
 
 import logging
@@ -116,6 +116,7 @@ SECTION_OPTIONS = [
     "Meta Ads",
     "Landings Pages",
     "Ventas",
+    "Performance por Anuncio",  # <-- NUEVA SECCIÓN (PLAN B)
     "Webinar"
 ]
 
@@ -126,17 +127,19 @@ section = st.sidebar.selectbox(
 )
 
 # ---------------------------
-# 1) DASHBOARD GENERAL
+# 1) DASHBOARD GENERAL (CONSULTA CORREGIDA)
 # ---------------------------
 if section == "Dashboard General":
     st.title("Dashboard General - Domustela")
     
-    df_meta = load_table_safe("SELECT fecha_corte, spend_eur FROM meta_campaign_metrics")
+    # CONSULTA CORREGIDA: Ahora SÍ incluye la columna 'results'
+    df_meta = load_table_safe("SELECT fecha_corte, spend_eur, results FROM meta_campaign_metrics")
     df_ga = load_table_safe("SELECT fecha, sessions, leads FROM landings_performance_new")
     df_sales = load_table_safe("SELECT precio FROM ventas_domustela")
     
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Inversión", f"{df_meta['spend_eur'].sum():,.0f} €")
+    # Ahora la columna 'results' existe y se sumará correctamente
     col2.metric("Leads Meta", f"{df_meta['results'].sum():,.0f}" if 'results' in df_meta.columns else "0")
     col3.metric("Sesiones GA4", f"{df_ga['sessions'].sum():,.0f}")
     col4.metric("Ingresos", f"{df_sales['precio'].sum():,.0f} €")
@@ -322,7 +325,118 @@ elif section == "Ventas":
     )
 
 # ---------------------------
-# 5) WEBINAR
+# 5) PERFORMANCE POR ANUNCIO (PLAN B - Fuzzy Matching)
+# ---------------------------
+elif section == "Performance por Anuncio":
+    st.title("Performance por Anuncio - ROI Estimado (Plan B)")
+    
+    st.markdown("""
+    **Objetivo**: Conectar automáticamente las ventas subidas por los closers con las campañas de Meta Ads para estimar el rendimiento (ROI).
+    *El sistema busca coincidencias inteligentes (Fuzzy Matching) entre los nombres anotados por closers y los nombres reales de campañas en Meta.*
+    """)
+    
+    # Cargar datos de ventas
+    df_ventas = load_table_safe("""
+        SELECT nombre_anuncio, precio 
+        FROM ventas_domustela 
+        WHERE estado = 'completada' AND nombre_anuncio IS NOT NULL
+    """)
+    
+    # Cargar datos de campañas de Meta
+    df_meta = load_table_safe("""
+        SELECT campaign_name, SUM(spend_eur) as gasto_total
+        FROM meta_campaign_metrics 
+        GROUP BY campaign_name
+        HAVING gasto_total > 0
+    """)
+    
+    if df_ventas.empty or df_meta.empty:
+        st.warning("Se necesitan datos de ventas completadas y campañas de Meta para este análisis.")
+    else:
+        # 1. Agrupar ventas por el nombre que pusieron los closers
+        ventas_agrupadas = df_ventas.groupby('nombre_anuncio').agg(
+            total_ventas=('precio', 'count'),
+            ingresos_totales=('precio', 'sum')
+        ).reset_index()
+        
+        # 2. Fuzzy Matching: Conectar con los nombres reales de Meta
+        resultados = []
+        campañas_meta = df_meta['campaign_name'].tolist()
+        
+        for _, fila in ventas_agrupadas.iterrows():
+            nombre_closer = str(fila['nombre_anuncio'])
+            mejor_coincidencia = None
+            mejor_puntaje = 0
+            
+            # Buscar la campaña de Meta que más se parezca
+            for campaña_meta in campañas_meta:
+                # Usar rapidfuzz si está disponible, si no, una búsqueda simple
+                if HAS_RAPIDFUZZ:
+                    puntaje = fuzz.WRatio(nombre_closer, str(campaña_meta))
+                else:
+                    # Búsqueda simple
+                    if nombre_closer.lower() in str(campaña_meta).lower():
+                        puntaje = 80
+                    else:
+                        puntaje = 0
+                
+                if puntaje > mejor_puntaje and puntaje >= FUZZY_MATCH_THRESHOLD:
+                    mejor_puntaje = puntaje
+                    mejor_coincidencia = campaña_meta
+            
+            # Si encontramos una buena coincidencia, guardar los datos combinados
+            if mejor_coincidencia:
+                gasto_campaña = df_meta.loc[df_meta['campaign_name'] == mejor_coincidencia, 'gasto_total'].iloc[0]
+                roi = ((fila['ingresos_totales'] - gasto_campaña) / gasto_campaña * 100) if gasto_campaña > 0 else 0
+                
+                resultados.append({
+                    'Nombre en Excel (Closer)': nombre_closer,
+                    'Campaña Meta (Match)': mejor_coincidencia,
+                    'Confianza Match': f"{mejor_puntaje:.0f}%",
+                    'Total Ventas': fila['total_ventas'],
+                    'Ingresos Totales (€)': fila['ingresos_totales'],
+                    'Gasto en Meta (€)': gasto_campaña,
+                    'ROI Estimado (%)': roi
+                })
+            else:
+                # Si no hay match, mostrar igual la venta
+                resultados.append({
+                    'Nombre en Excel (Closer)': nombre_closer,
+                    'Campaña Meta (Match)': "NO ENCONTRADA",
+                    'Confianza Match': "0%",
+                    'Total Ventas': fila['total_ventas'],
+                    'Ingresos Totales (€)': fila['ingresos_totales'],
+                    'Gasto en Meta (€)': 0,
+                    'ROI Estimado (%)': 0
+                })
+        
+        # 3. Mostrar resultados
+        if resultados:
+            df_resultados = pd.DataFrame(resultados)
+            
+            # --- TABLA PRINCIPAL ---
+            st.subheader("Conexión Ventas - Anuncios")
+            df_display = df_resultados.copy()
+            df_display['Ingresos Totales (€)'] = df_display['Ingresos Totales (€)'].map('€ {:,.0f}'.format)
+            df_display['Gasto en Meta (€)'] = df_display['Gasto en Meta (€)'].map('€ {:,.0f}'.format)
+            df_display['ROI Estimado (%)'] = df_display['ROI Estimado (%)'].map('{:+.1f}%'.format)
+            
+            st.dataframe(df_display, use_container_width=True, hide_index=True)
+            
+            # --- ANÁLISIS PARA DECISIONES ---
+            st.subheader("Resumen para Toma de Decisiones")
+            
+            df_con_match = df_resultados[df_resultados['Campaña Meta (Match)'] != "NO ENCONTRADA"]
+            if not df_con_match.empty:
+                mejor_anuncio = df_con_match.loc[df_con_match['ROI Estimado (%)'].idxmax()]
+                st.success(f"**ANUNCIO A PRIORIZAR:** *{mejor_anuncio['Campaña Meta (Match)']}*")
+                st.caption(f"ROI estimado: **{mejor_anuncio['ROI Estimado (%)']:+.1f}%**. Ventas: {mejor_anuncio['Total Ventas']}. Ingresos: {mejor_anuncio['Ingresos Totales (€)']:,.0f}€")
+        
+        else:
+            st.info("No se encontraron conexiones. Revisa que los nombres en 'nombre_anuncio' sean similares a los nombres reales de las campañas en Meta.")
+
+# ---------------------------
+# 6) WEBINAR
 # ---------------------------
 elif section == "Webinar":
     st.title("Webinar - Registros")
@@ -341,5 +455,5 @@ elif section == "Webinar":
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.caption("Domustela Dashboard v5.0")
+st.sidebar.caption("Domustela Dashboard v5.1 - Plan B Activo")
 st.sidebar.caption("JLON Data Solutions")
